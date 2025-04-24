@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,9 +15,16 @@ import { Play, ArrowRight, Home, ItalicIcon as AlphabetLatin, Calculator } from 
 
 export default function GameBoard() {
   const router = useRouter()
-  const { gameState, startRound, endRound, nextRound } = useGameStore()
+  const { gameState, startRound, activateRound, nextRound } = useGameStore()
 
-  const { config, currentRound, currentType, isRoundActive, isRoundCompleted } = gameState
+  const { config, currentRound, currentType, roundState } = gameState
+
+  const [playerOrder, setPlayerOrder] = useState<string[]>([...gameState.config.players].sort(() => Math.random() - 0.5).map((p) => p.id))
+  const [currentPlayer, setCurrentPlayer] = useState<number>(0)
+
+  function getActivePlayerId(): string {
+    return playerOrder[currentPlayer || 0]
+  }
 
   useEffect(() => {
     // Si no hay configuración, redirigir a la página principal
@@ -29,22 +36,23 @@ export default function GameBoard() {
   const handleStartRound = () => {
     startRound()
     toast.info(`¡Comienza la ronda de ${currentType === "letters" ? "letras" : "números"}!`, {
-      description: `Tienes ${
-        currentType === "letters" ? config.lettersRoundTime : config.numbersRoundTime
-      } segundos para encontrar la mejor solución.`,
+      description: `Tienes ${currentType === "letters" ? config.lettersRoundTime : config.numbersRoundTime
+        } segundos para encontrar la mejor solución.`,
     })
   }
 
-  const handleEndRound = () => {
-    endRound()
+  const handleEndTimer = () => {
+    activateRound()
     toast.success("¡Tiempo finalizado!", {
       description: "Ahora puedes introducir tu solución.",
     })
   }
 
   const handleNextRound = () => {
+    nextRound()
     if (currentRound < config.rounds) {
-      nextRound()
+      setPlayerOrder([...gameState.config.players].sort(() => Math.random() - 0.5).map((p) => p.id))
+      setCurrentPlayer(0)
       toast.info("Preparando siguiente ronda...")
     } else {
       // Fin del juego
@@ -64,7 +72,7 @@ export default function GameBoard() {
   // Determinar el tiempo de la ronda según el tipo
   const roundTime = currentType === "letters" ? config.lettersRoundTime : config.numbersRoundTime
 
-  if (!config) {
+  if (!config || !currentType) {
     return null
   }
 
@@ -77,20 +85,15 @@ export default function GameBoard() {
           </Button>
           <h1 className="text-3xl font-bold flex items-center">
             Ronda {currentRound} de {config.rounds}
-            {currentType === "letters" ? (
-              <AlphabetLatin className="ml-2 h-6 w-6 text-primary" />
-            ) : (
-              <Calculator className="ml-2 h-6 w-6 text-primary" />
-            )}
           </h1>
         </div>
         <div className="flex items-center gap-2">
-          {!isRoundActive && !isRoundCompleted && (
+          {roundState === 'initiated' && (
             <Button onClick={handleStartRound}>
               <Play className="mr-2 h-4 w-4" /> Comenzar ronda
             </Button>
           )}
-          {isRoundActive && <GameTimer duration={roundTime} onTimeEnd={handleEndRound} />}
+          {roundState === 'started' && <GameTimer duration={roundTime} onTimeEnd={handleEndTimer} />}
           <ThemeToggle />
         </div>
       </div>
@@ -110,9 +113,13 @@ export default function GameBoard() {
               )}
             </CardTitle>
           </CardHeader>
-          <CardContent>{currentType === "letters" ? <LettersRound /> : <NumbersRound />}</CardContent>
+          <CardContent>{currentType === "letters" ?
+            <LettersRound activePlayerId={getActivePlayerId()} nextPlayer={() => setCurrentPlayer((prev) => prev + 1)} currentPlayerIndex={currentPlayer} /> :
+            <NumbersRound activePlayerId={getActivePlayerId()} nextPlayer={() => setCurrentPlayer((prev) => prev + 1)} currentPlayerIndex={currentPlayer} />
+          }
+          </CardContent>
           <CardFooter className="flex justify-end">
-            {isRoundCompleted && (
+            {roundState === 'completed' && (
               <Button onClick={handleNextRound}>
                 {currentRound < config.rounds ? (
                   <>

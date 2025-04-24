@@ -38,7 +38,7 @@ export default function GameConfigForm({ onClose }: GameConfigFormProps) {
     if (players.length < 4) {
       setPlayers([
         ...players,
-        { id: Math.random().toString(36).substring(2, 9), name: `Jugador ${players.length + 1}` },
+        { id: `${players.length + 1}`, name: `Jugador ${players.length + 1}` },
       ])
     }
   }

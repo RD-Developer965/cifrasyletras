@@ -1,11 +1,5 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { generateRandomLetters, shuffle } from "@/lib/utils"
-
-
-// Números grandes y pequeños para el juego
-const LARGE_NUMBERS = [25, 50, 75, 100]
-const SMALL_NUMBERS = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10]
 
 export type Player = {
   id: string
@@ -22,25 +16,13 @@ export type GameConfig = {
   numbersRoundTime: number
 }
 
-export type Operation = {
-  id: string
-  value: number
-  expression: string
-  used: boolean
-}
 
 export type GameState = {
   config: GameConfig
   currentRound: number
-  currentType: "letters" | "numbers"
-  isRoundActive: boolean
-  isRoundCompleted: boolean
-  letters: string[]
-  numbers: number[]
-  operations: Operation[]
-  targetNumber: number
+  currentType?: "letters" | "numbers"
+  roundState: 'initiated' | 'started' | 'active' | 'completed'
   playerWords: Record<string, string>
-  playerSolutions: Record<string, string>
   playerRoundScores: Record<string, number>
 }
 
@@ -54,25 +36,21 @@ type GameStore = {
   // Acciones de juego
   startGame: () => void
   startRound: () => void
-  endRound: () => void
+  activateRound: () => void
+  completeRound: () => void
   nextRound: () => void
   resetGame: () => void
 
   // Acciones específicas de letras
   setPlayerWord: (playerId: string, word: string) => void
 
-  // Acciones específicas de números
-  addOperation: (value: number, expression: string, id?: string) => void
-  markOperationAsUsed: (id: string) => void
-  setPlayerSolution: (playerId: string, solution: string) => void
 
   // Puntuaciones
   updateScore: (playerId: string, points: number) => void
   setPlayerRoundScore: (playerId: string, points: number) => void
+
 }
 
-// Función para generar un ID único
-const generateId = () => Math.random().toString(36).substring(2, 9)
 
 // Crear la tienda Zustand
 export const useGameStore = create<GameStore>()(
@@ -82,8 +60,8 @@ export const useGameStore = create<GameStore>()(
       gameState: {
         config: {
           players: [
-            { id: generateId(), name: "Jugador 1", score: 0 },
-            { id: generateId(), name: "Jugador 2", score: 0 },
+            { id: "1", name: "Jugador 1", score: 0 },
+            { id: "2", name: "Jugador 2", score: 0 },
           ],
           rounds: 3,
           gameType: "mixed",
@@ -91,9 +69,7 @@ export const useGameStore = create<GameStore>()(
           numbersRoundTime: 90,
         },
         currentRound: 1,
-        currentType: "letters",
-        isRoundActive: false,
-        isRoundCompleted: false,
+        roundState: 'initiated',
         letters: [],
         numbers: [],
         operations: [],
@@ -119,15 +95,9 @@ export const useGameStore = create<GameStore>()(
               ...state.gameState,
               currentRound: 1,
               currentType: gameType === "numbers" ? "numbers" : "letters",
-              isRoundActive: false,
-              isRoundCompleted: false,
-              letters: [],
-              numbers: [],
-              operations: [],
-              targetNumber: 0,
               playerWords: {},
-              playerSolutions: {},
               playerRoundScores: {},
+              roundState: 'initiated',
               // Reiniciar puntuaciones
               config: {
                 ...state.gameState.config,
@@ -137,64 +107,54 @@ export const useGameStore = create<GameStore>()(
                 })),
               },
             },
-          }
+          } satisfies Partial<GameStore>
         }),      
+
 
       startRound: () =>
         set((state) => {
           const { currentType } = state.gameState
 
           if (currentType === "letters") {
-            // Generar letras aleatorias (5 vocales y 4 consonantes)
-            const letters = generateRandomLetters(5, 4)
 
             return {
               gameState: {
                 ...state.gameState,
-                isRoundActive: true,
-                isRoundCompleted: false,
-                letters,
+                roundState: 'started',
                 playerWords: {},
                 playerRoundScores: {},
               },
-            }
+            } satisfies Partial<GameStore>
           } else {
-            // Generar números aleatorios (2 grandes y 4 pequeños)
-            const largeNumbers = shuffle([...LARGE_NUMBERS]).slice(0, 2)
-            const smallNumbers = shuffle([...SMALL_NUMBERS]).slice(0, 4)
-            const numbers = [...largeNumbers, ...smallNumbers]
-
-            // Generar un número objetivo entre 100 y 999
-            const targetNumber = Math.floor(Math.random() * 900) + 100
+            
 
             return {
               gameState: {
                 ...state.gameState,
-                isRoundActive: true,
-                isRoundCompleted: false,
-                numbers,
-                operations: numbers.map((num) => ({
-                  id: generateId(),
-                  value: num,
-                  expression: num.toString(),
-                  used: false,
-                })),
-                targetNumber,
-                playerSolutions: {},
+                roundState: 'started',
                 playerRoundScores: {},
               },
-            }
+            } satisfies Partial<GameStore>
           }
         }),
 
-      endRound: () =>
+      activateRound: () =>
         set((state) => ({
           gameState: {
             ...state.gameState,
-            isRoundActive: false,
-            isRoundCompleted: true,
+            roundState: 'active'
           },
-        })),
+        } satisfies Partial<GameStore>)
+      ),
+
+      completeRound: () =>
+        set((state) => ({
+          gameState: {
+            ...state.gameState,
+            roundState: 'completed'
+          },
+        } satisfies Partial<GameStore>)
+      ),
 
       nextRound: () =>
         set((state) => {
@@ -215,6 +175,8 @@ export const useGameStore = create<GameStore>()(
                   ...config,
                   players: updatedPlayers,
                 },
+                roundState: 'initiated',
+                playerRoundScores: {}
               },
             }
           }
@@ -230,21 +192,15 @@ export const useGameStore = create<GameStore>()(
               ...state.gameState,
               currentRound: currentRound + 1,
               currentType: nextType,
-              isRoundActive: false,
-              isRoundCompleted: false,
-              letters: [],
-              numbers: [],
-              operations: [],
-              targetNumber: 0,
+              roundState: 'initiated',
               playerWords: {},
-              playerSolutions: {},
               playerRoundScores: {},
               config: {
                 ...config,
                 players: updatedPlayers,
               },
             },
-          }
+          } satisfies Partial<GameStore>
         }),
 
       resetGame: () =>
@@ -252,17 +208,11 @@ export const useGameStore = create<GameStore>()(
           gameState: {
             ...state.gameState,
             currentRound: 1,
-            isRoundActive: false,
-            isRoundCompleted: false,
-            letters: [],
-            numbers: [],
-            operations: [],
-            targetNumber: 0,
+            roundState: 'started',
             playerWords: {},
-            playerSolutions: {},
             playerRoundScores: {},
           },
-        })),
+        }) satisfies Partial<GameStore> ),
 
       setPlayerWord: (playerId, word) =>
         set((state) => ({
@@ -271,41 +221,6 @@ export const useGameStore = create<GameStore>()(
             playerWords: {
               ...state.gameState.playerWords,
               [playerId]: word,
-            },
-          },
-        })),
-
-      addOperation: (value: number, expression: string, id?: string) =>
-        set((state) => ({
-          gameState: {
-            ...state.gameState,
-            operations: [
-              ...state.gameState.operations,
-              {
-                id: id || generateId(),
-                value,
-                expression,
-                used: false,
-              },
-            ],
-          },
-        })),
-
-      markOperationAsUsed: (id) =>
-        set((state) => ({
-          gameState: {
-            ...state.gameState,
-            operations: state.gameState.operations.map((op) => (op.id === id ? { ...op, used: true } : op)),
-          },
-        })),
-
-      setPlayerSolution: (playerId, solution) =>
-        set((state) => ({
-          gameState: {
-            ...state.gameState,
-            playerSolutions: {
-              ...state.gameState.playerSolutions,
-              [playerId]: solution,
             },
           },
         })),
