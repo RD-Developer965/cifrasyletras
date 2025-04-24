@@ -1,121 +1,11 @@
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-import { shuffle } from "@/lib/utils"
+import { generateRandomLetters, shuffle } from "@/lib/utils"
 
-// Lista de palabras en español para validación
-const PALABRAS = [
-  "ALGORITMO",
-  "VARIABLE",
-  "FUNCIÓN",
-  "PROGRAMA",
-  "DESARROLLO",
-  "INTERFAZ",
-  "SISTEMA",
-  "MEMORIA",
-  "PROCESO",
-  "ARCHIVO",
-  "SERVIDOR",
-  "CLIENTE",
-  "CONEXIÓN",
-  "PROTOCOLO",
-  "NAVEGADOR",
-  "APLICACIÓN",
-  "LENGUAJE",
-  "COMPILADOR",
-  "INTÉRPRETE",
-  "BIBLIOTECA",
-  "FRAMEWORK",
-  "COMPONENTE",
-  "ESTRUCTURA",
-  "MÉTODO",
-  "OBJETO",
-  "PROPIEDAD",
-  "INSTANCIA",
-  "HERENCIA",
-  "POLIMORFISMO",
-  "ENCAPSULACIÓN",
-  "ABSTRACCIÓN",
-  "ITERACIÓN",
-  "RECURSIÓN",
-  "CONDICIÓN",
-  "EXPRESIÓN",
-  "OPERADOR",
-  "SINTAXIS",
-  "SEMÁNTICA",
-  "DEPURACIÓN",
-  "OPTIMIZACIÓN",
-  "COMPUTADORA",
-  "TECLADO",
-  "PANTALLA",
-  "RATÓN",
-  "IMPRESORA",
-  "INTERNET",
-  "DIGITAL",
-  "ANALÓGICO",
-  "BINARIO",
-  "DECIMAL",
-  "HEXADECIMAL",
-  "ALGORITMO",
-  "PROGRAMA",
-  "CÓDIGO",
-  "FUNCIÓN",
-  "VARIABLE",
-  "CONSTANTE",
-  "BUCLE",
-  "CONDICIÓN",
-  "CLASE",
-  "OBJETO",
-  "MÉTODO",
-  "ATRIBUTO",
-  "HERENCIA",
-  "INTERFAZ",
-  "ABSTRACTO",
-  "ESTÁTICO",
-  "DINÁMICO",
-  "PÚBLICO",
-  "PRIVADO",
-  "PROTEGIDO",
-  "VIRTUAL",
-  "SOBRECARGA",
-  "POLIMORFISMO",
-  "ENCAPSULACIÓN",
-  "BIBLIOTECA",
-  "FRAMEWORK",
-  "DEPURACIÓN",
-  "COMPILACIÓN",
-  "INTERPRETACIÓN",
-  "EJECUCIÓN",
-  "MEMORIA",
-  "CACHÉ",
-  "DISCO",
-  "ARCHIVO",
-  "CARPETA",
-  "DIRECTORIO",
-  "RUTA",
-  "ENLACE",
-  "SERVIDOR",
-  "CLIENTE",
-  "RED",
-  "PROTOCOLO",
-  "PUERTO",
-  "SOCKET",
-  "PAQUETE",
-  "ENCRIPTACIÓN",
-  "SEGURIDAD",
-  "FIREWALL",
-  "VIRUS",
-  "MALWARE",
-  "BACKUP",
-  "RESTAURACIÓN",
-]
 
 // Números grandes y pequeños para el juego
 const LARGE_NUMBERS = [25, 50, 75, 100]
 const SMALL_NUMBERS = [1, 1, 2, 2, 3, 3, 4, 4, 5, 5, 6, 6, 7, 7, 8, 8, 9, 9, 10, 10]
-
-// Frecuencia aproximada de letras en español
-const VOWELS = "AAAAAAAEEEEEEEIIIIIIOOOOOOUUUU"
-const CONSONANTS = "BBCCCDDDDFFGGHHHJJLLLLMMNNNNÑPPPQRRRRRSSSSTTTTTVVXYZ"
 
 export type Player = {
   id: string
@@ -170,8 +60,6 @@ type GameStore = {
 
   // Acciones específicas de letras
   setPlayerWord: (playerId: string, word: string) => void
-  generateRandomLetters: (vowelCount: number, consonantCount: number) => string[]
-  validateWord: (word: string, letters: string[]) => boolean
 
   // Acciones específicas de números
   addOperation: (value: number, expression: string, id?: string) => void
@@ -250,42 +138,7 @@ export const useGameStore = create<GameStore>()(
               },
             },
           }
-        }),
-
-      generateRandomLetters: (vowelCount, consonantCount) => {
-        const vowels = Array.from({ length: vowelCount }, () =>
-          VOWELS.charAt(Math.floor(Math.random() * VOWELS.length)),
-        )
-
-        const consonants = Array.from({ length: consonantCount }, () =>
-          CONSONANTS.charAt(Math.floor(Math.random() * CONSONANTS.length)),
-        )
-
-        return shuffle([...vowels, ...consonants])
-      },
-
-      validateWord: (word, letters) => {
-        // Convertir a mayúsculas para comparación
-        const upperWord = word.toUpperCase()
-
-        // Verificar si la palabra está en la lista
-        const isInWordList = PALABRAS.includes(upperWord)
-
-        // Verificar que solo usa las letras disponibles
-        const lettersCopy = [...letters]
-        let usesValidLetters = true
-
-        for (const char of upperWord) {
-          const index = lettersCopy.indexOf(char)
-          if (index === -1) {
-            usesValidLetters = false
-            break
-          }
-          lettersCopy.splice(index, 1)
-        }
-
-        return isInWordList && usesValidLetters
-      },
+        }),      
 
       startRound: () =>
         set((state) => {
@@ -293,7 +146,7 @@ export const useGameStore = create<GameStore>()(
 
           if (currentType === "letters") {
             // Generar letras aleatorias (5 vocales y 4 consonantes)
-            const letters = get().generateRandomLetters(5, 4)
+            const letters = generateRandomLetters(5, 4)
 
             return {
               gameState: {

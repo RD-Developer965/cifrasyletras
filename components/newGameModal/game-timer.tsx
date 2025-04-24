@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Progress } from "@/components/ui/progress"
 import { Clock } from "lucide-react"
 
@@ -12,20 +12,37 @@ interface GameTimerProps {
 export default function GameTimer({ duration, onTimeEnd }: GameTimerProps) {
   const [timeLeft, setTimeLeft] = useState(duration)
   const [progress, setProgress] = useState(100)
+  const hasEndedRef = useRef(false)
+
+  useEffect(() => {
+    // Reiniciar el estado cuando cambia la duración
+    setTimeLeft(duration)
+    setProgress(100)
+    hasEndedRef.current = false
+  }, [duration])
 
   useEffect(() => {
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
           clearInterval(timer)
-          onTimeEnd()
+          // Usamos el ref para asegurarnos de que onTimeEnd se llame solo una vez
+          if (!hasEndedRef.current) {
+            hasEndedRef.current = true
+            // Usamos setTimeout para asegurarnos de que la llamada ocurra después del renderizado
+            setTimeout(() => {
+              onTimeEnd()
+            }, 0)
+          }
           return 0
         }
         return prev - 1
       })
     }, 1000)
 
-    return () => clearInterval(timer)
+    return () => {
+      clearInterval(timer)
+    }
   }, [onTimeEnd])
 
   useEffect(() => {

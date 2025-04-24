@@ -7,9 +7,10 @@ import { Card } from "@/components/ui/card"
 import { useGameStore } from "@/lib/store"
 import { toast } from "sonner"
 import { Check, X, ItalicIcon as AlphabetLatin } from "lucide-react"
+import { validateWord } from "@/lib/utils"
 
 export default function LettersRound() {
-  const { gameState, setPlayerWord, setPlayerRoundScore, validateWord } = useGameStore()
+  const { gameState, setPlayerWord, setPlayerRoundScore } = useGameStore()
   const { isRoundActive, isRoundCompleted, letters, config } = gameState
 
   const [playerInputs, setPlayerInputs] = useState<Record<string, string>>({})
@@ -28,6 +29,11 @@ export default function LettersRound() {
   }, [config.players, isRoundActive])
 
   const handleInputChange = (playerId: string, value: string) => {
+    for (const char of value) {
+      if (!letters.includes(char.toUpperCase())) {
+        return
+      }
+    }
     setPlayerInputs((prev) => ({
       ...prev,
       [playerId]: value,
@@ -36,7 +42,7 @@ export default function LettersRound() {
 
   const validatePlayerWord = (playerId: string) => {
     const word = playerInputs[playerId].toUpperCase()
-    const isValid = validateWord(word, letters)
+    const isValid = validateWord(word)
 
     setValidations((prev) => ({
       ...prev,

@@ -9,11 +9,6 @@ import { HTML5Backend } from "react-dnd-html5-backend"
 import { Plus, Minus, X, Divide, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 
-// Tipos para el drag and drop
-const ItemTypes = {
-  NUMBER: "number",
-  OPERATION: "operation",
-}
 
 export default function NumbersRound() {
   const { gameState, setPlayerSolution, setPlayerRoundScore } = useGameStore()
@@ -124,6 +119,11 @@ export default function NumbersRound() {
     }))
   }
 
+  const cleanPlayerOperations = () => {
+    setPlayerOperations({})
+    setPlayerResults({})
+  }
+
   return (
     <DndProvider backend={HTML5Backend}>
       <div className="space-y-6">
@@ -168,6 +168,7 @@ export default function NumbersRound() {
                   initialNumbers={numbers}
                   targetNumber={targetNumber}
                   onOperationComplete={(operation, result) => updatePlayerOperations(operation, result)}
+                  onOperationsCleaned={cleanPlayerOperations}
                   operations={playerOperations[currentPlayerId] || []}
                   currentResult={playerResults[currentPlayerId]}
                 />
@@ -213,14 +214,18 @@ function SimpleNumbersCalculator({
   initialNumbers,
   targetNumber,
   onOperationComplete,
+  onOperationsCleaned,
   operations = [],
   currentResult = null,
+  currentPlayerId
 }: {
   initialNumbers: number[]
   targetNumber: number
   onOperationComplete: (operation: string, result: number) => void
+  onOperationsCleaned: () => void
   operations?: string[]
-  currentResult?: number | null
+  currentResult?: number | null,
+  currentPlayerId?: string
 }) {
   // Estado para los números disponibles (iniciales + resultados intermedios)
   const [availableNumbers, setAvailableNumbers] = useState<{ id: string; value: number }[]>([])
@@ -233,7 +238,7 @@ function SimpleNumbersCalculator({
   // Inicializar los números disponibles
   useEffect(() => {
     resetAvailableNumbers()
-  }, [initialNumbers])
+  }, [currentPlayerId])
 
   // Función para resetear los números disponibles a los iniciales
   const resetAvailableNumbers = () => {
@@ -257,7 +262,7 @@ function SimpleNumbersCalculator({
     resetAvailableNumbers()
 
     // Notificar que se ha limpiado todo
-    onOperationComplete("", 0)
+    onOperationsCleaned()
     toast.info("Operaciones limpiadas", {
       description: "Se han reiniciado todas las operaciones.",
     })
@@ -265,16 +270,16 @@ function SimpleNumbersCalculator({
 
   // Seleccionar un número
   const selectNumber = (number: { id: string; value: number }) => {
-    if (!firstNumber) {
+    if (!selectedOperator) {
       setFirstNumber(number)
-    } else if (selectedOperator && !secondNumber && number.id !== firstNumber.id) {
+    } else if (firstNumber && selectedOperator && number.id !== firstNumber.id) {
       setSecondNumber(number)
     }
   }
 
   // Seleccionar un operador
   const selectOperator = (operator: string) => {
-    if (firstNumber && !selectedOperator) {
+    if (firstNumber) {
       setSelectedOperator(operator)
     }
   }
@@ -343,13 +348,13 @@ function SimpleNumbersCalculator({
       {operations.length > 0 && (
         <div className="p-4 border rounded-md bg-muted/20">
           <div className="text-sm font-medium mb-2">Operaciones realizadas:</div>
-          <ol className="list-decimal pl-5 space-y-1">
+          <ul className="list-disc pl-5 space-y-1">
             {operations.map((op, index) => (
               <li key={index} className="text-sm">
                 {op}
               </li>
             ))}
-          </ol>
+          </ul>
           {currentResult !== null && (
             <div className="mt-3 pt-2 border-t border-dashed">
               <div className="flex justify-between items-center">
@@ -369,19 +374,19 @@ function SimpleNumbersCalculator({
         <h4 className="text-sm font-medium mb-2">Números disponibles:</h4>
         <div className="flex flex-wrap gap-2">
           {availableNumbers.map((number) => (
-            <div
+            <button
               key={number.id}
               onClick={() => selectNumber(number)}
-              className={`cursor-pointer transition-all ${
-                firstNumber?.id === number.id
+              className={`cursor-pointer transition-all ${firstNumber?.id === number.id
                   ? "ring-2 ring-primary"
                   : secondNumber?.id === number.id
                     ? "ring-2 ring-secondary"
                     : "hover:scale-105"
-              }`}
+                }`}
+                disabled={Boolean(firstNumber && !selectedOperator)}
             >
               <Card className="w-14 h-14 flex items-center justify-center text-lg font-bold">{number.value}</Card>
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -391,7 +396,7 @@ function SimpleNumbersCalculator({
         <Button
           variant="outline"
           onClick={() => selectOperator("+")}
-          disabled={!firstNumber || selectedOperator}
+          disabled={Boolean(!firstNumber)}
           className={selectedOperator === "+" ? "bg-primary text-primary-foreground" : ""}
         >
           <Plus className="h-4 w-4" />
@@ -399,7 +404,7 @@ function SimpleNumbersCalculator({
         <Button
           variant="outline"
           onClick={() => selectOperator("-")}
-          disabled={!firstNumber || selectedOperator}
+          disabled={Boolean(!firstNumber)}
           className={selectedOperator === "-" ? "bg-primary text-primary-foreground" : ""}
         >
           <Minus className="h-4 w-4" />
@@ -407,7 +412,7 @@ function SimpleNumbersCalculator({
         <Button
           variant="outline"
           onClick={() => selectOperator("×")}
-          disabled={!firstNumber || selectedOperator}
+          disabled={(Boolean(!firstNumber))}
           className={selectedOperator === "×" ? "bg-primary text-primary-foreground" : ""}
         >
           <X className="h-4 w-4" />
@@ -415,7 +420,7 @@ function SimpleNumbersCalculator({
         <Button
           variant="outline"
           onClick={() => selectOperator("÷")}
-          disabled={!firstNumber || selectedOperator}
+          disabled={Boolean(!firstNumber)}
           className={selectedOperator === "÷" ? "bg-primary text-primary-foreground" : ""}
         >
           <Divide className="h-4 w-4" />
